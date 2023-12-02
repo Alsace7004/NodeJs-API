@@ -1,12 +1,16 @@
+const logEvents= require('./logEvents')
 
-const {format} = require('date-fns');
-const {v4:uuid} = require('uuid');
+const EventEmitter = require('events')
 
-console.log(format(new Date(),'yyyyMMdd\tHH:mm:ss'))
+class MyEmitter extends EventEmitter {}
 
-console.log('different id everytime :',uuid());
 
-//8.3.2 ||Major version|Minor Version|Path
-//^ || go ahead & update Minor/Patch version but not Major Version
-//tilde || update inly Patch Version
-console.log('Thanks')
+//initialisse object
+const myEmitter = new MyEmitter();
+//add listener fo the log event
+myEmitter.on('log',(msg)=>logEvents(msg));
+
+setTimeout(()=>{
+    //Emit Event
+    myEmitter.emit('log','Log event emitted!!!');
+},2000);
