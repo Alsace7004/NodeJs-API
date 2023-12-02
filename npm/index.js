@@ -1,30 +1,66 @@
-const http = require('http');
+const express = require('express')
+const app = express()
 const path = require('path')
-const fs = require('fs')
-const fsPromises = require('fs').promises;
-
-const logEvents= require('./logEvents')
-const EventEmitter = require('events')
-class Emitter extends EventEmitter {}
-//initialisse object
-const myEmitter = new Emitter();
-myEmitter.on('log',(msg,filename)=>logEvents(msg,filename));
-
+const cors = require('cors')
+const {logger} = require('./middleware/logEvents')
+const errorHandler = require('./middleware/errorHandler')
 const PORT  = process.env.PORT || 3500;
 
-const server = http.createServer((req,res)=>{
-    console.log(req.url,req.method)
-    myEmitter.emit('log',`${req.url}\t${req.method}`,'reqLog.txt');
+//custum middleware logger
+app.use(logger)
+//Cross Origin Resource Sharing
+const whitelist = [
+    'https://www.yoursite.com',
+    'http://127.0.0.1:5500',
+    'http://localhost:3500',
+]
+const corsOptions = {
+    origin:(origin,callback)=>{
+        if(whitelist.indexOf(origin) !== -1 || !origin){
+            callback(null,true)
+        }else{
+            callback(new Error('Not allowed by CORS'))
+        }
+    },
+    optionsSuccessStatus:200
+}
+app.use(cors())
+
+app.use(express.urlencoded({extended:false})) 
+app.use(express.json())
+app.use(express.static(path.join(__dirname,'/public')))
+
+app.get('^/$|/index(.html)?',(req,res)=>{ 
+    res.sendFile(path.join(__dirname,'views','index.html'))
+})
+app.get('/new-page(.html)?',(req,res)=>{ 
+    res.sendFile(path.join(__dirname,'views','new-page.html'))
+})
+app.get('/old-page(.html)?',(req,res)=>{ 
+    res.redirect(301,'/new-page.html')
+})
+//Route handlers
+app.get('/hello(.html)?',(req,res,next)=>{
+    console.log('atempted to load hello.html');
+    next()
+},(req,res)=>{
+    res.send('Hello World !')
 })
 
-server.listen(PORT,()=>{
+app.all('*',(req,res)=>{
+    res.status(404);
+    if(req.accepts('html')){
+        res.sendFile(path.join(__dirname,'views','404.html'))
+    }
+    if(req.accepts('json')){
+        res.json({error:"404 Not Found"})
+    }else{
+        res.type('txt').send("404 Not Found");
+    }
+})
+
+app.use(errorHandler)
+
+app.listen(PORT,()=>{
     console.log(`The server is up and running on ${PORT}`)
 })
-
-
-//add listener fo the log event
-/*
- setTimeout(()=>{
-    //Emit Event 
-    myEmitter.emit('log','Log event emitted!!!');
-},2000); */
